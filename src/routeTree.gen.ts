@@ -10,33 +10,141 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as CandidateReviewRouteImport } from './routes/candidate.review'
+import { Route as CandidateResultRouteImport } from './routes/candidate.result'
+import { Route as CandidateProcessingRouteImport } from './routes/candidate.processing'
+import { Route as CandidateLanguageRouteImport } from './routes/candidate.language'
+import { Route as CandidateInterviewRouteImport } from './routes/candidate.interview'
+import { Route as CandidateInstructionsRouteImport } from './routes/candidate.instructions'
+import { Route as AdminIdRouteImport } from './routes/admin.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CandidateReviewRoute = CandidateReviewRouteImport.update({
+  id: '/candidate/review',
+  path: '/candidate/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CandidateResultRoute = CandidateResultRouteImport.update({
+  id: '/candidate/result',
+  path: '/candidate/result',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CandidateProcessingRoute = CandidateProcessingRouteImport.update({
+  id: '/candidate/processing',
+  path: '/candidate/processing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CandidateLanguageRoute = CandidateLanguageRouteImport.update({
+  id: '/candidate/language',
+  path: '/candidate/language',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CandidateInterviewRoute = CandidateInterviewRouteImport.update({
+  id: '/candidate/interview',
+  path: '/candidate/interview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CandidateInstructionsRoute = CandidateInstructionsRouteImport.update({
+  id: '/candidate/instructions',
+  path: '/candidate/instructions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIdRoute = AdminIdRouteImport.update({
+  id: '/admin/$id',
+  path: '/admin/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin/$id': typeof AdminIdRoute
+  '/candidate/instructions': typeof CandidateInstructionsRoute
+  '/candidate/interview': typeof CandidateInterviewRoute
+  '/candidate/language': typeof CandidateLanguageRoute
+  '/candidate/processing': typeof CandidateProcessingRoute
+  '/candidate/result': typeof CandidateResultRoute
+  '/candidate/review': typeof CandidateReviewRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/$id': typeof AdminIdRoute
+  '/candidate/instructions': typeof CandidateInstructionsRoute
+  '/candidate/interview': typeof CandidateInterviewRoute
+  '/candidate/language': typeof CandidateLanguageRoute
+  '/candidate/processing': typeof CandidateProcessingRoute
+  '/candidate/result': typeof CandidateResultRoute
+  '/candidate/review': typeof CandidateReviewRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin/$id': typeof AdminIdRoute
+  '/candidate/instructions': typeof CandidateInstructionsRoute
+  '/candidate/interview': typeof CandidateInterviewRoute
+  '/candidate/language': typeof CandidateLanguageRoute
+  '/candidate/processing': typeof CandidateProcessingRoute
+  '/candidate/result': typeof CandidateResultRoute
+  '/candidate/review': typeof CandidateReviewRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin/$id'
+    | '/candidate/instructions'
+    | '/candidate/interview'
+    | '/candidate/language'
+    | '/candidate/processing'
+    | '/candidate/result'
+    | '/candidate/review'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin/$id'
+    | '/candidate/instructions'
+    | '/candidate/interview'
+    | '/candidate/language'
+    | '/candidate/processing'
+    | '/candidate/result'
+    | '/candidate/review'
+    | '/admin'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin/$id'
+    | '/candidate/instructions'
+    | '/candidate/interview'
+    | '/candidate/language'
+    | '/candidate/processing'
+    | '/candidate/result'
+    | '/candidate/review'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminIdRoute: typeof AdminIdRoute
+  CandidateInstructionsRoute: typeof CandidateInstructionsRoute
+  CandidateInterviewRoute: typeof CandidateInterviewRoute
+  CandidateLanguageRoute: typeof CandidateLanguageRoute
+  CandidateProcessingRoute: typeof CandidateProcessingRoute
+  CandidateResultRoute: typeof CandidateResultRoute
+  CandidateReviewRoute: typeof CandidateReviewRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +156,75 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/candidate/review': {
+      id: '/candidate/review'
+      path: '/candidate/review'
+      fullPath: '/candidate/review'
+      preLoaderRoute: typeof CandidateReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/candidate/result': {
+      id: '/candidate/result'
+      path: '/candidate/result'
+      fullPath: '/candidate/result'
+      preLoaderRoute: typeof CandidateResultRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/candidate/processing': {
+      id: '/candidate/processing'
+      path: '/candidate/processing'
+      fullPath: '/candidate/processing'
+      preLoaderRoute: typeof CandidateProcessingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/candidate/language': {
+      id: '/candidate/language'
+      path: '/candidate/language'
+      fullPath: '/candidate/language'
+      preLoaderRoute: typeof CandidateLanguageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/candidate/interview': {
+      id: '/candidate/interview'
+      path: '/candidate/interview'
+      fullPath: '/candidate/interview'
+      preLoaderRoute: typeof CandidateInterviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/candidate/instructions': {
+      id: '/candidate/instructions'
+      path: '/candidate/instructions'
+      fullPath: '/candidate/instructions'
+      preLoaderRoute: typeof CandidateInstructionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/$id': {
+      id: '/admin/$id'
+      path: '/admin/$id'
+      fullPath: '/admin/$id'
+      preLoaderRoute: typeof AdminIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminIdRoute: AdminIdRoute,
+  CandidateInstructionsRoute: CandidateInstructionsRoute,
+  CandidateInterviewRoute: CandidateInterviewRoute,
+  CandidateLanguageRoute: CandidateLanguageRoute,
+  CandidateProcessingRoute: CandidateProcessingRoute,
+  CandidateResultRoute: CandidateResultRoute,
+  CandidateReviewRoute: CandidateReviewRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
