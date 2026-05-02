@@ -1,0 +1,50 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Lightbulb, Eye, Mic } from "lucide-react";
+import { useApp } from "@/lib/store";
+
+export const Route = createFileRoute("/candidate/instructions")({
+  component: InstructionsPage,
+});
+
+function InstructionsPage() {
+  const { language, resetAnswers } = useApp();
+
+  return (
+    <div className="min-h-screen bg-background px-4 py-8">
+      <div className="mx-auto max-w-md">
+        <h1 className="mb-1 text-2xl font-bold">Before you start</h1>
+        <p className="mb-6 text-sm text-muted-foreground">
+          Language: <span className="font-medium text-foreground">{language}</span>
+        </p>
+
+        <div className="space-y-3">
+          <Tip icon={<Lightbulb className="h-5 w-5" />} title="Sit in good lighting" desc="Make sure your face is well lit, no backlight." />
+          <Tip icon={<Eye className="h-5 w-5" />} title="Ensure your face is visible" desc="Keep camera at eye level. Look straight." />
+          <Tip icon={<Mic className="h-5 w-5" />} title="Speak clearly" desc="Find a quiet place. Don't rush. Be natural." />
+        </div>
+
+        <Link to="/candidate/interview">
+          <Button onClick={resetAnswers} className="mt-8 w-full" size="lg">
+            Start Interview
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function Tip({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
+  return (
+    <Card className="flex items-start gap-3 p-4">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+        {icon}
+      </div>
+      <div>
+        <p className="font-semibold">{title}</p>
+        <p className="text-sm text-muted-foreground">{desc}</p>
+      </div>
+    </Card>
+  );
+}
