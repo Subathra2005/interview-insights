@@ -3,7 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { MOCK_CANDIDATES, QUESTIONS } from "@/lib/store";
+import { AuthGate } from "@/components/auth-gate";
+import { MOCK_CANDIDATES, QUESTIONS, useApp } from "@/lib/store";
 import { CheckCircle2, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/admin/$id")({
@@ -19,7 +20,8 @@ const classColor: Record<string, string> = {
 
 function CandidateDetail() {
   const { id } = Route.useParams();
-  const candidate = MOCK_CANDIDATES.find((c) => c.id === id);
+  const { submittedCandidates, markCandidateSelected } = useApp();
+  const candidate = [...submittedCandidates, ...MOCK_CANDIDATES].find((c) => c.id === id);
 
   if (!candidate) {
     return (
@@ -32,71 +34,112 @@ function CandidateDetail() {
     );
   }
 
-  const breakdown = {
-    relevance: Math.min(100, candidate.score + 5),
-    clarity: Math.max(20, candidate.score - 3),
-    confidence: candidate.score - 8,
-  };
+  const breakdown = candidate.result
+    ? {
+        relevance: candidate.result.relevance,
+        clarity: candidate.result.clarity,
+        confidence: candidate.result.confidence,
+      }
+    : {
+        relevance: Math.min(100, candidate.score + 5),
+        clarity: Math.max(20, candidate.score - 3),
+        confidence: candidate.score - 8,
+      };
 
-  const duplicate = candidate.flags.includes("Duplicate");
-  const audioGood = !candidate.flags.includes("Low confidence");
-  const faceDetected = !candidate.flags.includes("Fraud");
+  const duplicate = candidate.flags.includes("Duplicate") || candidate.flags.includes("Duplicate suspected");
+  const audioGood = candidate.result ? candidate.result.validation.audioQuality === "Good" : !candidate.flags.includes("Low confidence");
+  const faceDetected = candidate.result ? candidate.result.validation.faceDetected : !candidate.flags.includes("Fraud");
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6">
-      <div className="mx-auto max-w-2xl space-y-4">
-        <Link to="/admin" className="text-sm text-primary">← Back to Dashboard</Link>
+    <AuthGate requiredRole="admin">
+      <div className="min-h-screen bg-background px-4 py-6">
+        <div className="mx-auto max-w-2xl space-y-4">
+          <Link to="/admin" className="text-sm text-primary">← Back to Dashboard</Link>
 
-        <Card className="p-5">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">{candidate.name}</h1>
-              <p className="text-sm text-muted-foreground">{candidate.id} • {candidate.language} • {candidate.category}</p>
-            </div>
-            <span className="text-3xl font-bold">{candidate.score}</span>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Badge className={classColor[candidate.classification]}>{candidate.classification}</Badge>
-            {candidate.flags.map((f) => (
-              <Badge key={f} variant="destructive">{f}</Badge>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <h3 className="mb-3 font-semibold">Validation</h3>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <ValidationRow label="Face detected" ok={faceDetected} />
-            <ValidationRow label={`Audio: ${audioGood ? "Good" : "Low"}`} ok={audioGood} />
-            <ValidationRow label="Duplicate suspected" ok={!duplicate} negative={duplicate} />
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <h3 className="mb-3 font-semibold">Score Breakdown</h3>
-          <Bar label="Relevance" value={breakdown.relevance} />
-          <Bar label="Clarity" value={breakdown.clarity} />
-          <Bar label="Confidence" value={breakdown.confidence} />
-        </Card>
-
-        <Card className="p-4">
-          <h3 className="mb-3 font-semibold">Answers</h3>
-          <div className="space-y-4">
-            {QUESTIONS.slice(0, 3).map((q, i) => (
-              <div key={i} className="border-l-2 border-primary/40 pl-3">
-                <p className="text-xs font-medium text-muted-foreground">Q{i + 1}: {q}</p>
-                <div className="mt-2 flex aspect-video w-full items-center justify-center rounded-md bg-muted text-xs text-muted-foreground">
-                  [ Video playback placeholder ]
-                </div>
-                <p className="mt-2 text-sm">
-                  Mock transcript: The candidate provided a clear and structured answer covering the main points expected for this question.
-                </p>
+          <Card className="p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">{candidate.name}</h1>
+                <p className="text-sm text-muted-foreground">{candidate.id} • {candidate.language} • {candidate.category}</p>
+                {candidate.email && <p className="text-xs text-muted-foreground">{candidate.email}</p>}
               </div>
-            ))}
-          </div>
-        </Card>
+              <span className="text-3xl font-bold">{candidate.score}</span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge className={classColor[candidate.classification]}>{candidate.classification}</Badge>
+              {candidate.selected && <Badge className="bg-blue-100 text-blue-700">Selected</Badge>}
+              {candidate.flags.map((f) => (
+                <Badge key={f} variant="destructive">{f}</Badge>
+              ))}
+            </div>
+            {candidate.result && (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Submitted interview result from the live candidate flow.
+              </p>
+            )}
+            {candidate.source === "submission" && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  onClick={() => markCandidateSelected(candidate.id, true)}
+                  disabled={candidate.selected}
+                >
+                  Mark Selected
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => markCandidateSelected(candidate.id, false)}
+                  disabled={!candidate.selected}
+                >
+                  Revoke Selection
+                </Button>
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-4">
+            <h3 className="mb-3 font-semibold">Validation</h3>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <ValidationRow label="Face detected" ok={faceDetected} />
+              <ValidationRow label={`Audio: ${audioGood ? "Good" : "Low"}`} ok={audioGood} />
+              <ValidationRow label="Duplicate suspected" ok={!duplicate} negative={duplicate} />
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <h3 className="mb-3 font-semibold">Score Breakdown</h3>
+            <Bar label="Relevance" value={breakdown.relevance} />
+            <Bar label="Clarity" value={breakdown.clarity} />
+            <Bar label="Confidence" value={breakdown.confidence} />
+          </Card>
+
+          <Card className="p-4">
+            <h3 className="mb-3 font-semibold">Answers</h3>
+            <div className="space-y-4">
+              {candidate.result
+                ? candidate.result.transcripts.map((t) => (
+                    <div key={t.questionIndex} className="border-l-2 border-primary/40 pl-3">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Q{t.questionIndex + 1}: {t.question}
+                      </p>
+                      <p className="mt-2 text-sm">{t.transcript}</p>
+                    </div>
+                  ))
+                : QUESTIONS.slice(0, 3).map((q, i) => (
+                    <div key={i} className="border-l-2 border-primary/40 pl-3">
+                      <p className="text-xs font-medium text-muted-foreground">Q{i + 1}: {q}</p>
+                      <div className="mt-2 flex aspect-video w-full items-center justify-center rounded-md bg-muted text-xs text-muted-foreground">
+                        [ Video playback placeholder ]
+                      </div>
+                      <p className="mt-2 text-sm">
+                        Mock transcript: The candidate provided a clear and structured answer covering the main points expected for this question.
+                      </p>
+                    </div>
+                  ))}
+            </div>
+          </Card>
+        </div>
       </div>
-    </div>
+    </AuthGate>
   );
 }
 

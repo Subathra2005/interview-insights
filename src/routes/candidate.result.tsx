@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { AuthGate } from "@/components/auth-gate";
 import { useApp } from "@/lib/store";
 
 export const Route = createFileRoute("/candidate/result")({
@@ -33,49 +34,51 @@ function ResultPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6">
-      <div className="mx-auto max-w-md space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold">Your Results</h1>
-          <p className="text-sm text-muted-foreground">Language: {result.language}</p>
-        </div>
-
-        <Card className="p-5 text-center">
-          <p className="text-xs uppercase text-muted-foreground">Overall Score</p>
-          <p className="my-1 text-5xl font-bold">{result.overall}</p>
-          <Badge className={classColor[result.classification] || ""}>
-            {result.classification}
-          </Badge>
-        </Card>
-
-        <Card className="p-4">
-          <h3 className="mb-3 font-semibold">Score Breakdown</h3>
-          <ScoreBar label="Relevance" value={result.relevance} />
-          <ScoreBar label="Clarity" value={result.clarity} />
-          <ScoreBar label="Confidence" value={result.confidence} />
-        </Card>
-
-        <Card className="p-4">
-          <h3 className="mb-3 font-semibold">Transcripts</h3>
-          <div className="space-y-3">
-            {result.transcripts.map((t: any) => (
-              <div key={t.questionIndex} className="border-l-2 border-primary/40 pl-3">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Q{t.questionIndex + 1}: {t.question}
-                </p>
-                <p className="mt-1 text-sm">{t.transcript}</p>
-              </div>
-            ))}
+    <AuthGate requiredRole="candidate">
+      <div className="min-h-screen bg-background px-4 py-6">
+        <div className="mx-auto max-w-md space-y-4">
+          <div>
+            <h1 className="text-2xl font-bold">Your Results</h1>
+            <p className="text-sm text-muted-foreground">Language: {result.language}</p>
           </div>
-        </Card>
 
-        <Link to="/">
-          <Button variant="outline" className="w-full">
-            Back to Home
-          </Button>
-        </Link>
+          <Card className="p-5 text-center">
+            <p className="text-xs uppercase text-muted-foreground">Overall Score</p>
+            <p className="my-1 text-5xl font-bold">{result.overall}</p>
+            <Badge className={classColor[result.classification] || ""}>
+              {result.classification}
+            </Badge>
+          </Card>
+
+          <Card className="p-4">
+            <h3 className="mb-3 font-semibold">Score Breakdown</h3>
+            <ScoreBar label="Relevance" value={result.relevance} />
+            <ScoreBar label="Clarity" value={result.clarity} />
+            <ScoreBar label="Confidence" value={result.confidence} />
+          </Card>
+
+          <Card className="p-4">
+            <h3 className="mb-3 font-semibold">Transcripts</h3>
+            <div className="space-y-3">
+              {result.transcripts.map((t: any) => (
+                <div key={t.questionIndex} className="border-l-2 border-primary/40 pl-3">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Q{t.questionIndex + 1}: {t.question}
+                  </p>
+                  <p className="mt-1 text-sm">{t.transcript}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Link to="/">
+            <Button variant="outline" className="w-full">
+              Back to Home
+            </Button>
+          </Link>
+        </div>
       </div>
-    </div>
+    </AuthGate>
   );
 }
 

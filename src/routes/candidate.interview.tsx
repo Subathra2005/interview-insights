@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { AuthGate } from "@/components/auth-gate";
 import { useApp, QUESTIONS } from "@/lib/store";
 import { useEffect, useRef, useState } from "react";
 import { Volume2, Video as VideoIcon, Square, Play, CheckCircle2, Mic } from "lucide-react";
@@ -136,92 +137,94 @@ function InterviewPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6">
-      <div className="mx-auto max-w-md">
-        <div className="mb-3 flex items-center justify-between">
-          <Badge variant="secondary">
-            Question {qIndex + 1} of {QUESTIONS.length}
-          </Badge>
-          <span className="text-xs text-muted-foreground">{answers.length} answered</span>
-        </div>
-        <Progress value={((qIndex) / QUESTIONS.length) * 100} className="mb-4 h-2" />
+    <AuthGate requiredRole="candidate">
+      <div className="min-h-screen bg-background px-4 py-6">
+        <div className="mx-auto max-w-md">
+          <div className="mb-3 flex items-center justify-between">
+            <Badge variant="secondary">
+              Question {qIndex + 1} of {QUESTIONS.length}
+            </Badge>
+            <span className="text-xs text-muted-foreground">{answers.length} answered</span>
+          </div>
+          <Progress value={qIndex / QUESTIONS.length * 100} className="mb-4 h-2" />
 
-        <Card className="mb-4 p-4">
-          <p className="mb-3 text-base font-medium leading-snug">{QUESTIONS[qIndex]}</p>
-          <Button variant="outline" size="sm" onClick={playMockAudio}>
-            <Volume2 className="mr-2 h-4 w-4" /> Play Question Audio
-          </Button>
-        </Card>
+          <Card className="mb-4 p-4">
+            <p className="mb-3 text-base font-medium leading-snug">{QUESTIONS[qIndex]}</p>
+            <Button variant="outline" size="sm" onClick={playMockAudio}>
+              <Volume2 className="mr-2 h-4 w-4" /> Play Question Audio
+            </Button>
+          </Card>
 
-        <Card className="mb-3 overflow-hidden">
-          <div className="relative aspect-[3/4] bg-black sm:aspect-video">
+          <Card className="mb-3 overflow-hidden">
+            <div className="relative aspect-[3/4] bg-black sm:aspect-video">
+              {!recordedUrl ? (
+                <video
+                  ref={liveVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <video
+                  ref={previewRef}
+                  src={recordedUrl}
+                  controls
+                  playsInline
+                  className="h-full w-full object-cover"
+                />
+              )}
+              {recording && (
+                <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-destructive/90 px-3 py-1 text-xs font-medium text-destructive-foreground">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
+                  REC {formatTime(timer)}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-between border-t p-3 text-xs">
+              <span className="flex items-center gap-1 text-emerald-600">
+                <CheckCircle2 className="h-3 w-3" /> Face detected
+              </span>
+              <span className="flex items-center gap-1 text-emerald-600">
+                <Mic className="h-3 w-3" /> Audio: Good
+              </span>
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-2 gap-2">
             {!recordedUrl ? (
-              <video
-                ref={liveVideoRef}
-                autoPlay
-                muted
-                playsInline
-                className="h-full w-full object-cover"
-              />
+              !recording ? (
+                <Button onClick={startRecording} disabled={!stream} className="col-span-2">
+                  <VideoIcon className="mr-2 h-4 w-4" /> Start Recording
+                </Button>
+              ) : (
+                <Button onClick={stopRecording} variant="destructive" className="col-span-2">
+                  <Square className="mr-2 h-4 w-4" /> Stop Recording
+                </Button>
+              )
             ) : (
-              <video
-                ref={previewRef}
-                src={recordedUrl}
-                controls
-                playsInline
-                className="h-full w-full object-cover"
-              />
-            )}
-            {recording && (
-              <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-destructive/90 px-3 py-1 text-xs font-medium text-destructive-foreground">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
-                REC {formatTime(timer)}
-              </div>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setRecordedUrl(null);
+                    setTimer(0);
+                  }}
+                >
+                  <Play className="mr-2 h-4 w-4" /> Re-record
+                </Button>
+                <Button onClick={submitAnswer}>
+                  {qIndex === QUESTIONS.length - 1 ? "Submit & Review" : "Submit & Next"}
+                </Button>
+              </>
             )}
           </div>
-          <div className="flex items-center justify-between border-t p-3 text-xs">
-            <span className="flex items-center gap-1 text-emerald-600">
-              <CheckCircle2 className="h-3 w-3" /> Face detected
-            </span>
-            <span className="flex items-center gap-1 text-emerald-600">
-              <Mic className="h-3 w-3" /> Audio: Good
-            </span>
-          </div>
-        </Card>
 
-        <div className="grid grid-cols-2 gap-2">
-          {!recordedUrl ? (
-            !recording ? (
-              <Button onClick={startRecording} disabled={!stream} className="col-span-2">
-                <VideoIcon className="mr-2 h-4 w-4" /> Start Recording
-              </Button>
-            ) : (
-              <Button onClick={stopRecording} variant="destructive" className="col-span-2">
-                <Square className="mr-2 h-4 w-4" /> Stop Recording
-              </Button>
-            )
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setRecordedUrl(null);
-                  setTimer(0);
-                }}
-              >
-                <Play className="mr-2 h-4 w-4" /> Re-record
-              </Button>
-              <Button onClick={submitAnswer}>
-                {qIndex === QUESTIONS.length - 1 ? "Submit & Review" : "Submit & Next"}
-              </Button>
-            </>
-          )}
+          <p className="mt-3 text-center text-xs text-muted-foreground">
+            You cannot skip questions. Answer all {QUESTIONS.length} to continue.
+          </p>
         </div>
-
-        <p className="mt-3 text-center text-xs text-muted-foreground">
-          You cannot skip questions. Answer all {QUESTIONS.length} to continue.
-        </p>
       </div>
-    </div>
+    </AuthGate>
   );
 }

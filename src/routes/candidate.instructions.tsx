@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AuthGate } from "@/components/auth-gate";
 import { Lightbulb, Eye, Mic } from "lucide-react";
 import { useApp } from "@/lib/store";
 
@@ -9,29 +10,47 @@ export const Route = createFileRoute("/candidate/instructions")({
 });
 
 function InstructionsPage() {
-  const { language, resetAnswers } = useApp();
+  const { language, resetAnswers, activeInterviewRole, canCandidateSubmitRole } = useApp();
+  const eligibility = activeInterviewRole
+    ? canCandidateSubmitRole(activeInterviewRole)
+    : { allowed: false, reason: "Choose an interview role before starting." };
 
   return (
-    <div className="min-h-screen bg-background px-4 py-8">
-      <div className="mx-auto max-w-md">
-        <h1 className="mb-1 text-2xl font-bold">Before you start</h1>
-        <p className="mb-6 text-sm text-muted-foreground">
-          Language: <span className="font-medium text-foreground">{language}</span>
-        </p>
+    <AuthGate requiredRole="candidate">
+      <div className="min-h-screen bg-background px-4 py-8">
+        <div className="mx-auto max-w-md">
+          <h1 className="mb-1 text-2xl font-bold">Before you start</h1>
+          <p className="mb-2 text-sm text-muted-foreground">
+            Language: <span className="font-medium text-foreground">{language}</span>
+          </p>
+          {activeInterviewRole && (
+            <p className="mb-6 text-sm text-muted-foreground">
+              Role: <span className="font-medium text-foreground">{activeInterviewRole}</span>
+            </p>
+          )}
 
-        <div className="space-y-3">
-          <Tip icon={<Lightbulb className="h-5 w-5" />} title="Sit in good lighting" desc="Make sure your face is well lit, no backlight." />
-          <Tip icon={<Eye className="h-5 w-5" />} title="Ensure your face is visible" desc="Keep camera at eye level. Look straight." />
-          <Tip icon={<Mic className="h-5 w-5" />} title="Speak clearly" desc="Find a quiet place. Don't rush. Be natural." />
+          <div className="space-y-3">
+            <Tip icon={<Lightbulb className="h-5 w-5" />} title="Sit in good lighting" desc="Make sure your face is well lit, no backlight." />
+            <Tip icon={<Eye className="h-5 w-5" />} title="Ensure your face is visible" desc="Keep camera at eye level. Look straight." />
+            <Tip icon={<Mic className="h-5 w-5" />} title="Speak clearly" desc="Find a quiet place. Don't rush. Be natural." />
+          </div>
+
+          <Link to="/candidate/interview">
+            <Button
+              onClick={resetAnswers}
+              className="mt-8 w-full"
+              size="lg"
+              disabled={!eligibility.allowed}
+            >
+              Start Interview
+            </Button>
+          </Link>
+          {!eligibility.allowed && (
+            <p className="mt-2 text-sm text-rose-600">{eligibility.reason}</p>
+          )}
         </div>
-
-        <Link to="/candidate/interview">
-          <Button onClick={resetAnswers} className="mt-8 w-full" size="lg">
-            Start Interview
-          </Button>
-        </Link>
       </div>
-    </div>
+    </AuthGate>
   );
 }
 
