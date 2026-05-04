@@ -18,6 +18,7 @@ function Home() {
   const [audience, setAudience] = useState<UserRole>("candidate");
   const [mode, setMode] = useState<"login" | "signup">("signup");
   const [name, setName] = useState("");
+  const [district, setDistrict] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
@@ -48,10 +49,16 @@ function Home() {
         return;
       }
 
+      if (!district.trim()) {
+        setError("Enter your district to create a candidate account.");
+        return;
+      }
+
       const result = signupCandidate({
         name,
         email: trimmedEmail,
         password,
+        district,
       });
 
       if (!result.ok || !result.user) {
@@ -175,15 +182,26 @@ function Home() {
 
           <form className="mt-6 space-y-4" onSubmit={submit}>
             {audience === "candidate" && mode === "signup" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Full name</label>
-                <Input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Jane Candidate"
-                  autoComplete="name"
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">Full name</label>
+                  <Input
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="Jane Candidate"
+                    autoComplete="name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">District</label>
+                  <Input
+                    value={district}
+                    onChange={(event) => setDistrict(event.target.value)}
+                    placeholder="District"
+                    autoComplete="address-level2"
+                  />
+                </div>
+              </>
             )}
 
             <div className="space-y-2">

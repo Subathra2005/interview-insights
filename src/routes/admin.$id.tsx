@@ -15,8 +15,12 @@ export const Route = createFileRoute("/admin/$id")({
 const classColor: Record<string, string> = {
   "Job-ready": "bg-emerald-100 text-emerald-700",
   "Requires training": "bg-amber-100 text-amber-700",
+  "Requires training / upskilling": "bg-amber-100 text-amber-700",
+  "Requires manual verification": "bg-sky-100 text-sky-700",
   "Low confidence": "bg-orange-100 text-orange-700",
+  "Low-confidence / poor-quality": "bg-orange-100 text-orange-700",
   "Fraud suspected": "bg-red-100 text-red-700",
+  "Suspected duplicate / fraud": "bg-red-100 text-red-700",
 };
 
 function CandidateDetail() {
@@ -73,6 +77,9 @@ function CandidateDetail() {
                 <p className="text-sm text-muted-foreground">
                   {candidate.id} • {candidate.language} • {candidate.category}
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  District: {candidate.district ?? "Not provided"}
+                </p>
                 {candidate.email && (
                   <p className="text-xs text-muted-foreground">{candidate.email}</p>
                 )}
@@ -118,12 +125,51 @@ function CandidateDetail() {
           </Card>
 
           <Card className="p-4">
-            <h3 className="mb-3 font-semibold">Validation</h3>
+            <h3 className="mb-3 font-semibold">Confidential Analysis</h3>
+            {candidate.result && (
+              <div className="mb-3 space-y-2 text-sm">
+                <p>{candidate.result.analysisSummary}</p>
+                <p className="font-medium">{candidate.result.confidenceSummary}</p>
+                <p>
+                  Decision:{" "}
+                  <span className="font-medium">{candidate.result.decisionRecommendation}</span>
+                </p>
+                <p>
+                  Fitment: <span className="font-medium">{candidate.result.fitmentCategory}</span>
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <ValidationRow label="Face detected" ok={faceDetected} />
               <ValidationRow label={`Audio: ${audioGood ? "Good" : "Low"}`} ok={audioGood} />
               <ValidationRow label="Duplicate suspected" ok={!duplicate} negative={duplicate} />
             </div>
+            {candidate.result && (
+              <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+                <p>Lip sync: {candidate.result.validation.lipSync ?? "Requires verification"}</p>
+                <p>
+                  Eye contact: {candidate.result.validation.eyeContact ?? "Requires verification"}
+                </p>
+                <p>
+                  Authenticity:{" "}
+                  {candidate.result.validation.responseAuthenticity ?? "Requires verification"}
+                </p>
+              </div>
+            )}
+            {candidate.result &&
+              ((candidate.result.malpracticeSignals?.length ?? 0) > 0 ||
+                (candidate.result.negativeRemarks?.length ?? 0) > 0) && (
+                <div className="mt-3 space-y-1">
+                  {[
+                    ...(candidate.result.malpracticeSignals ?? []),
+                    ...(candidate.result.negativeRemarks ?? []),
+                  ].map((item) => (
+                    <Badge key={item} variant="destructive" className="mr-1">
+                      {item}
+                    </Badge>
+                  ))}
+                </div>
+              )}
           </Card>
 
           <Card className="p-4">

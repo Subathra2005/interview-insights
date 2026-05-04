@@ -10,6 +10,26 @@ import { useApp } from "@/lib/store";
 import { getPreferredRecordingMimeType, getSpeechLanguage } from "@/lib/interview-flow";
 import { uploadBlobSimple } from "@/lib/upload";
 
+type SpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type SpeechRecognitionEventLike = {
+  resultIndex: number;
+  results: ArrayLike<{
+    isFinal: boolean;
+    0: { transcript: string };
+  }>;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
 export const Route = createFileRoute("/candidate/interview")({
   component: InterviewPage,
 });
@@ -33,6 +53,7 @@ function InterviewPage() {
   const [permError, setPermError] = useState<string | null>(null);
   const [uploadingRecording, setUploadingRecording] = useState(false);
   const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [liveTranscript, setLiveTranscript] = useState("");
   const [retakeCounts, setRetakeCounts] = useState<Record<number, number>>({});
 
   const liveVideoRef = useRef<HTMLVideoElement>(null);
@@ -41,6 +62,8 @@ function InterviewPage() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const durationRef = useRef(0);
   const recordedUrlRef = useRef<string | null>(null);
+  const transcriptRef = useRef("");
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const timerRef = useRef(0);
   const submittedRef = useRef(false);
 
@@ -86,6 +109,8 @@ function InterviewPage() {
   const startRecording = () => {
     if (!stream) return;
     chunksRef.current = [];
+    transcriptRef.current = "";
+    setLiveTranscript("");
     setRecordingError(null);
     const mimeType = getPreferredRecordingMimeType();
     const mr = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
@@ -119,6 +144,42 @@ function InterviewPage() {
       }
     };
     mr.start();
+    const SpeechRecognition =
+      typeof window !== "undefined"
+        ? ((
+            window as typeof window & {
+              SpeechRecognition?: SpeechRecognitionConstructor;
+              webkitSpeechRecognition?: SpeechRecognitionConstructor;
+            }
+          ).SpeechRecognition ??
+          (
+            window as typeof window & {
+              webkitSpeechRecognition?: SpeechRecognitionConstructor;
+            }
+          ).webkitSpeechRecognition)
+        : undefined;
+
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.lang = getSpeechLanguage(language);
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.onresult = (event) => {
+        let text = "";
+        for (let index = 0; index < event.results.length; index += 1) {
+          text += `${event.results[index][0].transcript} `;
+        }
+        transcriptRef.current = text.trim();
+        setLiveTranscript(transcriptRef.current);
+      };
+      recognition.onerror = () => {};
+      try {
+        recognition.start();
+        recognitionRef.current = recognition;
+      } catch {
+        recognitionRef.current = null;
+      }
+    }
     recorderRef.current = mr;
     setRecording(true);
     setTimer(0);
@@ -133,6 +194,8 @@ function InterviewPage() {
 
   const stopRecording = () => {
     recorderRef.current?.stop();
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
     setRecording(false);
     if (intervalRef.current) clearInterval(intervalRef.current);
   };
@@ -175,8 +238,11 @@ function InterviewPage() {
       question: selectedQuestions[qIndex]?.question ?? "",
       videoUrl: answerUrl,
       durationSec: timerRef.current || timer,
+      transcript: transcriptRef.current,
     });
     recordedUrlRef.current = null;
+    transcriptRef.current = "";
+    setLiveTranscript("");
     setRecordedUrl(null);
     setTimer(0);
     timerRef.current = 0;
@@ -289,6 +355,8 @@ function InterviewPage() {
             </p>
           )}
 
+          {/* Live transcript intentionally hidden during interview */}
+
           <div className="grid grid-cols-2 gap-2">
             {!recordedUrl ? (
               !recording ? (
@@ -313,6 +381,8 @@ function InterviewPage() {
                   onClick={() => {
                     setRetakeCounts((prev) => ({ ...prev, [qIndex]: (prev[qIndex] ?? 0) + 1 }));
                     recordedUrlRef.current = null;
+                    transcriptRef.current = "";
+                    setLiveTranscript("");
                     setRecordedUrl(null);
                     setTimer(0);
                     timerRef.current = 0;

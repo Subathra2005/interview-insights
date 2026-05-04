@@ -9,6 +9,7 @@ export type AuthUser = {
   name: string;
   email: string;
   role: UserRole;
+  district?: string;
 };
 
 type SavedAccount = AuthUser & { password: string };
@@ -26,6 +27,12 @@ export type InterviewResult = {
   confidence: number;
   overall: number;
   classification: string;
+  fitmentCategory: string;
+  decisionRecommendation: string;
+  confidenceSummary: string;
+  analysisSummary: string;
+  malpracticeSignals: string[];
+  negativeRemarks: string[];
   transcripts: Array<{
     questionIndex: number;
     question: string;
@@ -36,6 +43,9 @@ export type InterviewResult = {
     faceDetected: boolean;
     audioQuality: string;
     duplicateSuspected: boolean;
+    lipSync: string;
+    eyeContact: string;
+    responseAuthenticity: string;
   };
 };
 
@@ -43,6 +53,7 @@ export type AdminCandidateRecord = {
   id: string;
   name: string;
   email?: string;
+  district?: string;
   language: string;
   score: number;
   classification: string;
@@ -50,6 +61,9 @@ export type AdminCandidateRecord = {
   category: string;
   source: "mock" | "submission";
   interviewRole?: CandidateInterviewRole;
+  fitmentCategory?: string;
+  decisionRecommendation?: string;
+  confidenceScore?: number;
   submittedAt?: string;
   result?: InterviewResult;
   selected?: boolean;
@@ -127,6 +141,7 @@ export type Answer = {
   question: string;
   videoUrl: string;
   durationSec: number;
+  transcript?: string;
 };
 
 type AppState = {
@@ -143,7 +158,12 @@ type AppState = {
   setResult: (r: InterviewResult | null) => void;
   authUser: AuthUser | null;
   login: (args: { email: string; password: string }) => AuthResult;
-  signupCandidate: (args: { name: string; email: string; password: string }) => AuthResult;
+  signupCandidate: (args: {
+    name: string;
+    email: string;
+    password: string;
+    district: string;
+  }) => AuthResult;
   logout: () => void;
   candidateInterviewRoles: CandidateInterviewRole[];
   submittedCandidates: AdminCandidateRecord[];
@@ -236,9 +256,12 @@ function buildFlags(result: InterviewResult): string[] {
     flags.push("Duplicate suspected");
   }
 
-  if (result.classification === "Fraud suspected") {
+  if (result.classification === "Suspected duplicate / fraud") {
     flags.push("Fraud suspected");
   }
+
+  result.malpracticeSignals.forEach((signal) => flags.push(signal));
+  result.negativeRemarks.forEach((remark) => flags.push(remark));
 
   return flags;
 }
@@ -440,10 +463,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     name,
     email,
     password,
+    district,
   }: {
     name: string;
     email: string;
     password: string;
+    district: string;
   }): AuthResult => {
     const normalizedEmail = email.trim().toLowerCase();
 
@@ -466,6 +491,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       email: normalizedEmail,
       password,
       role: "candidate",
+      district: district.trim(),
     };
 
     const user = toPublicUser(newAccount);
@@ -544,19 +570,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      const sameNamePriorSubmission = submittedCandidates.find(
+        (candidate) =>
+          candidate.email !== user.email &&
+          candidate.name.trim().toLowerCase() === user.name.trim().toLowerCase(),
+      );
+      const enrichedResult: InterviewResult = sameNamePriorSubmission
+        ? {
+            ...result,
+            classification: "Suspected duplicate / fraud",
+            validation: { ...result.validation, duplicateSuspected: true },
+            malpracticeSignals: [
+              ...result.malpracticeSignals,
+              "Possible repeat attempt under another account",
+            ],
+          }
+        : result;
+
       const record: AdminCandidateRecord = {
         id: `INT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
         name: user.name,
         email: user.email,
-        language: result.language,
-        score: result.overall,
-        classification: result.classification,
-        flags: buildFlags(result),
+        district: user.district,
+        language: enrichedResult.language,
+        score: enrichedResult.overall,
+        classification: enrichedResult.classification,
+        flags: buildFlags(enrichedResult),
         category: interviewRole,
         source: "submission",
         interviewRole,
+        fitmentCategory: enrichedResult.fitmentCategory,
+        decisionRecommendation: enrichedResult.decisionRecommendation,
+        confidenceScore: enrichedResult.confidence,
         submittedAt: new Date().toISOString(),
-        result,
+        result: enrichedResult,
         selected: false,
       };
 
@@ -723,14 +770,63 @@ export const MOCK_CANDIDATES: AdminCandidateRecord[] = [
 ];
 
 export function generateMockResult(answers: Answer[], language: string): InterviewResult {
-  const relevance = 70 + Math.floor(Math.random() * 25);
-  const clarity = 65 + Math.floor(Math.random() * 30);
-  const confidence = 60 + Math.floor(Math.random() * 35);
+  const combinedTranscript = answers
+    .map((answer) => answer.transcript ?? "")
+    .join(" ")
+    .trim();
+  const words = combinedTranscript.split(/\s+/).filter(Boolean);
+  const uniqueRatio = words.length
+    ? new Set(words.map((word) => word.toLowerCase())).size / words.length
+    : 0;
+  const averageDuration =
+    answers.reduce((total, answer) => total + answer.durationSec, 0) / Math.max(answers.length, 1);
+  const hasTranscript = words.length >= 18;
+  const fillerMatches =
+    combinedTranscript.match(/\b(um|uh|like|actually|basically)\b/gi)?.length ?? 0;
+  const readingSignals =
+    /\b(as mentioned above|according to|paragraph|document|script|reading)\b/i.test(
+      combinedTranscript,
+    ) || uniqueRatio > 0.92;
+
+  const relevance = Math.min(95, Math.max(25, 45 + words.length * 2));
+  const clarity = Math.min(95, Math.max(25, 82 - fillerMatches * 4));
+  const confidence = Math.min(
+    95,
+    Math.max(
+      20,
+      (hasTranscript ? 72 : 38) + Math.min(12, averageDuration) - (readingSignals ? 18 : 0),
+    ),
+  );
   const overall = Math.round((relevance + clarity + confidence) / 3);
+  const malpracticeSignals = readingSignals ? ["Possible scripted or read response"] : [];
+  const negativeRemarks = !hasTranscript
+    ? ["Low transcript confidence; manual review recommended"]
+    : [];
+
   let classification = "Job-ready";
-  if (overall < 50) classification = "Low confidence";
-  else if (overall < 70) classification = "Requires training";
-  if (confidence < 65 && relevance < 75) classification = "Fraud suspected";
+  if (malpracticeSignals.length > 0 && confidence < 65)
+    classification = "Requires manual verification";
+  else if (overall < 45) classification = "Low-confidence / poor-quality";
+  else if (overall < 70) classification = "Requires training / upskilling";
+
+  const fitmentCategory =
+    overall >= 75
+      ? "Polytechnic-skilled roles"
+      : overall >= 55
+        ? "Semi-skilled workforce"
+        : "Blue-collar trades";
+  const decisionRecommendation =
+    classification === "Job-ready"
+      ? "Shortlist for jobs"
+      : classification.includes("training")
+        ? "Shortlist for training"
+        : "Send for manual verification";
+  const confidenceSummary =
+    confidence >= 75
+      ? "High confidence: AI could understand the response clearly enough to support an accurate decision."
+      : confidence >= 55
+        ? "Medium confidence: AI understood the response, but admin review is advised before final decision."
+        : "Low confidence: audio/transcript clarity is insufficient for an accurate automated decision.";
 
   return {
     language,
@@ -739,19 +835,28 @@ export function generateMockResult(answers: Answer[], language: string): Intervi
     confidence,
     overall,
     classification,
+    fitmentCategory,
+    decisionRecommendation,
+    confidenceSummary,
+    analysisSummary:
+      "Confidential assessment for authorized reviewers only. Scores are based on transcript clarity, response completeness, and review signals captured during the interview.",
+    malpracticeSignals,
+    negativeRemarks,
     transcripts: answers.map((a, i) => ({
       questionIndex: a.questionIndex,
       question: a.question,
       videoUrl: a.videoUrl,
-      transcript:
-        "This is a simulated transcript of the candidate's response to question " +
-        (i + 1) +
-        ". The candidate spoke clearly and addressed the key points.",
+      transcript: a.transcript?.trim() || `No clear transcript captured for question ${i + 1}.`,
     })),
     validation: {
       faceDetected: true,
-      audioQuality: "Good",
+      audioQuality: hasTranscript ? "Good" : "Low",
       duplicateSuspected: false,
+      lipSync: "Requires vision model verification",
+      eyeContact: "Requires vision model verification",
+      responseAuthenticity: readingSignals
+        ? "Possible scripted/read response"
+        : "No script signal detected",
     },
   };
 }

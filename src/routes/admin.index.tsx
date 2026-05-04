@@ -22,13 +22,19 @@ export const Route = createFileRoute("/admin/")({
 const classColor: Record<string, string> = {
   "Job-ready": "bg-emerald-100 text-emerald-700",
   "Requires training": "bg-amber-100 text-amber-700",
+  "Requires training / upskilling": "bg-amber-100 text-amber-700",
+  "Requires manual verification": "bg-sky-100 text-sky-700",
   "Low confidence": "bg-orange-100 text-orange-700",
+  "Low-confidence / poor-quality": "bg-orange-100 text-orange-700",
   "Fraud suspected": "bg-red-100 text-red-700",
+  "Suspected duplicate / fraud": "bg-red-100 text-red-700",
 };
 
 function AdminDashboard() {
   const [lang, setLang] = useState("all");
   const [cat, setCat] = useState("all");
+  const [district, setDistrict] = useState("all");
+  const [fitment, setFitment] = useState("all");
   const [controlRole, setControlRole] = useState<CandidateInterviewRole>("Engineering");
   const {
     submittedCandidates,
@@ -62,9 +68,37 @@ function AdminDashboard() {
 
   const filtered = useMemo(() => {
     return allCandidates.filter(
-      (c) => (lang === "all" || c.language === lang) && (cat === "all" || c.category === cat),
+      (c) =>
+        (lang === "all" || c.language === lang) &&
+        (cat === "all" || c.category === cat) &&
+        (district === "all" || c.district === district) &&
+        (fitment === "all" || c.fitmentCategory === fitment),
     );
-  }, [lang, cat, allCandidates]);
+  }, [lang, cat, district, fitment, allCandidates]);
+
+  const districts = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          allCandidates
+            .map((candidate) => candidate.district)
+            .filter((item): item is string => Boolean(item)),
+        ),
+      ),
+    [allCandidates],
+  );
+
+  const fitmentCategories = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          allCandidates
+            .map((candidate) => candidate.fitmentCategory)
+            .filter((item): item is string => Boolean(item)),
+        ),
+      ),
+    [allCandidates],
+  );
 
   const saveInterviewWindow = () => {
     updateInterviewControlForRole(controlRole, {
@@ -166,7 +200,7 @@ function AdminDashboard() {
             )}
           </Card>
 
-          <div className="mb-4 grid grid-cols-2 gap-2 sm:max-w-md">
+          <div className="mb-4 grid gap-2 sm:grid-cols-4">
             <Select value={lang} onValueChange={setLang}>
               <SelectTrigger>
                 <SelectValue placeholder="Language" />
@@ -191,6 +225,32 @@ function AdminDashboard() {
                 <SelectItem value="Support">Support</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={district} onValueChange={setDistrict}>
+              <SelectTrigger>
+                <SelectValue placeholder="District" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Districts</SelectItem>
+                {districts.map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {item}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={fitment} onValueChange={setFitment}>
+              <SelectTrigger>
+                <SelectValue placeholder="Fitment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Fitment</SelectItem>
+                {fitmentCategories.map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {item}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Mobile cards */}
@@ -202,7 +262,7 @@ function AdminDashboard() {
                     <div>
                       <p className="font-semibold">{c.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {c.id} • {c.language}
+                        {c.id} • {c.language} • {c.district ?? "District not set"}
                       </p>
                       <p className="mt-1 text-[11px] uppercase tracking-wide text-emerald-700">
                         Submitted
@@ -212,6 +272,9 @@ function AdminDashboard() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge className={classColor[c.classification]}>{c.classification}</Badge>
+                    {c.confidenceScore !== undefined && (
+                      <Badge variant="outline">Confidence {c.confidenceScore}</Badge>
+                    )}
                     {c.selected && <Badge className="bg-blue-100 text-blue-700">Selected</Badge>}
                     {c.flags.map((f) => (
                       <Badge key={f} variant="destructive" className="text-xs">
@@ -231,10 +294,12 @@ function AdminDashboard() {
               <thead className="bg-muted/50 text-xs uppercase">
                 <tr>
                   <th className="p-3 text-left">Candidate</th>
+                  <th className="p-3 text-left">District</th>
                   <th className="p-3 text-left">Language</th>
                   <th className="p-3 text-left">Role</th>
-                  <th className="p-3 text-left">Score</th>
+                  <th className="p-3 text-left">Confidence</th>
                   <th className="p-3 text-left">Classification</th>
+                  <th className="p-3 text-left">Decision</th>
                   <th className="p-3 text-left">Flags</th>
                   <th className="p-3"></th>
                 </tr>
@@ -246,9 +311,10 @@ function AdminDashboard() {
                       <p className="font-medium">{c.name}</p>
                       <p className="text-xs text-muted-foreground">{c.id}</p>
                     </td>
+                    <td className="p-3">{c.district ?? "—"}</td>
                     <td className="p-3">{c.language}</td>
                     <td className="p-3">{c.category}</td>
-                    <td className="p-3 font-semibold">{c.score}</td>
+                    <td className="p-3 font-semibold">{c.confidenceScore ?? c.score}</td>
                     <td className="p-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge className={classColor[c.classification]}>{c.classification}</Badge>
@@ -256,6 +322,14 @@ function AdminDashboard() {
                           <Badge className="bg-blue-100 text-blue-700">Selected</Badge>
                         )}
                       </div>
+                    </td>
+                    <td className="p-3">
+                      <p className="text-xs font-medium">
+                        {c.decisionRecommendation ?? "Review candidate"}
+                      </p>
+                      {c.fitmentCategory && (
+                        <p className="text-xs text-muted-foreground">{c.fitmentCategory}</p>
+                      )}
                     </td>
                     <td className="p-3">
                       <div className="flex flex-wrap gap-1">
