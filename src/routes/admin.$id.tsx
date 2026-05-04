@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { AuthGate } from "@/components/auth-gate";
-import { MOCK_CANDIDATES, QUESTIONS, useApp } from "@/lib/store";
+import { useApp } from "@/lib/store";
+import { toPlayableUploadUrl } from "@/lib/upload";
 import { CheckCircle2, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/admin/$id")({
@@ -21,14 +22,16 @@ const classColor: Record<string, string> = {
 function CandidateDetail() {
   const { id } = Route.useParams();
   const { submittedCandidates, markCandidateSelected } = useApp();
-  const candidate = [...submittedCandidates, ...MOCK_CANDIDATES].find((c) => c.id === id);
+  const candidate = submittedCandidates.find((c) => c.id === id);
 
   if (!candidate) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <Card className="p-6 text-center">
           <p className="mb-4">Candidate not found.</p>
-          <Link to="/admin"><Button>Back to Dashboard</Button></Link>
+          <Link to="/admin">
+            <Button>Back to Dashboard</Button>
+          </Link>
         </Card>
       </div>
     );
@@ -46,30 +49,48 @@ function CandidateDetail() {
         confidence: candidate.score - 8,
       };
 
-  const duplicate = candidate.flags.includes("Duplicate") || candidate.flags.includes("Duplicate suspected");
-  const audioGood = candidate.result ? candidate.result.validation.audioQuality === "Good" : !candidate.flags.includes("Low confidence");
-  const faceDetected = candidate.result ? candidate.result.validation.faceDetected : !candidate.flags.includes("Fraud");
+  const duplicate =
+    candidate.flags.includes("Duplicate") || candidate.flags.includes("Duplicate suspected");
+  const audioGood = candidate.result
+    ? candidate.result.validation.audioQuality === "Good"
+    : !candidate.flags.includes("Low confidence");
+  const faceDetected = candidate.result
+    ? candidate.result.validation.faceDetected
+    : !candidate.flags.includes("Fraud");
 
   return (
     <AuthGate requiredRole="admin">
       <div className="min-h-screen bg-background px-4 py-6">
         <div className="mx-auto max-w-2xl space-y-4">
-          <Link to="/admin" className="text-sm text-primary">← Back to Dashboard</Link>
+          <Link to="/admin" className="text-sm text-primary">
+            ← Back to Dashboard
+          </Link>
 
           <Card className="p-5">
             <div className="flex items-start justify-between">
               <div>
                 <h1 className="text-2xl font-bold">{candidate.name}</h1>
-                <p className="text-sm text-muted-foreground">{candidate.id} • {candidate.language} • {candidate.category}</p>
-                {candidate.email && <p className="text-xs text-muted-foreground">{candidate.email}</p>}
+                <p className="text-sm text-muted-foreground">
+                  {candidate.id} • {candidate.language} • {candidate.category}
+                </p>
+                {candidate.email && (
+                  <p className="text-xs text-muted-foreground">{candidate.email}</p>
+                )}
               </div>
               <span className="text-3xl font-bold">{candidate.score}</span>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Badge className={classColor[candidate.classification]}>{candidate.classification}</Badge>
+              <Badge className={classColor[candidate.classification]}>
+                {candidate.classification}
+              </Badge>
+              <Badge variant="outline" className="border-emerald-200 text-emerald-700">
+                Submitted
+              </Badge>
               {candidate.selected && <Badge className="bg-blue-100 text-blue-700">Selected</Badge>}
               {candidate.flags.map((f) => (
-                <Badge key={f} variant="destructive">{f}</Badge>
+                <Badge key={f} variant="destructive">
+                  {f}
+                </Badge>
               ))}
             </div>
             {candidate.result && (
@@ -121,17 +142,34 @@ function CandidateDetail() {
                       <p className="text-xs font-medium text-muted-foreground">
                         Q{t.questionIndex + 1}: {t.question}
                       </p>
+                      <p className="mt-1 text-xs text-muted-foreground">Recorded response</p>
+                      {t.videoUrl && (
+                        <video
+                          src={toPlayableUploadUrl(t.videoUrl)}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className="mt-2 aspect-video w-full rounded-md bg-black"
+                        />
+                      )}
                       <p className="mt-2 text-sm">{t.transcript}</p>
                     </div>
                   ))
-                : QUESTIONS.slice(0, 3).map((q, i) => (
+                : [
+                    "Tell us about your background.",
+                    "Why are you interested in this role?",
+                    "Describe a challenge you solved.",
+                  ].map((q, i) => (
                     <div key={i} className="border-l-2 border-primary/40 pl-3">
-                      <p className="text-xs font-medium text-muted-foreground">Q{i + 1}: {q}</p>
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Q{i + 1}: {q}
+                      </p>
                       <div className="mt-2 flex aspect-video w-full items-center justify-center rounded-md bg-muted text-xs text-muted-foreground">
                         [ Video playback placeholder ]
                       </div>
                       <p className="mt-2 text-sm">
-                        Mock transcript: The candidate provided a clear and structured answer covering the main points expected for this question.
+                        Mock transcript: The candidate provided a clear and structured answer
+                        covering the main points expected for this question.
                       </p>
                     </div>
                   ))}
@@ -143,7 +181,15 @@ function CandidateDetail() {
   );
 }
 
-function ValidationRow({ label, ok, negative }: { label: string; ok: boolean; negative?: boolean }) {
+function ValidationRow({
+  label,
+  ok,
+  negative,
+}: {
+  label: string;
+  ok: boolean;
+  negative?: boolean;
+}) {
   const color = negative ? "text-red-600" : ok ? "text-emerald-600" : "text-amber-600";
   return (
     <div className={`flex items-center gap-2 rounded-md border p-2 text-sm ${color}`}>

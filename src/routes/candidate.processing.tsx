@@ -9,11 +9,12 @@ export const Route = createFileRoute("/candidate/processing")({
   component: ProcessingPage,
 });
 
-const STEPS = ["Transcribing audio…", "Analyzing response…", "Generating score…"];
+const STEPS = ["Saving recordings…", "Submitting interview…", "Finishing…"];
 
 function ProcessingPage() {
   const navigate = useNavigate();
-  const { answers, language, setResult, authUser, submitInterviewResult, activeInterviewRole } = useApp();
+  const { answers, language, setResult, authUser, submitInterviewResult, activeInterviewRole } =
+    useApp();
   const [step, setStep] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const savedRef = useRef(false);
@@ -24,15 +25,31 @@ function ProcessingPage() {
       return;
     }
 
+    if (!authUser) {
+      setSubmitError("Please log in to submit your interview.");
+      return;
+    }
+
     if (step < STEPS.length) {
       const t = setTimeout(() => setStep((s) => s + 1), 1500);
       return () => clearTimeout(t);
-    } else {
-      if (savedRef.current) return;
+    }
 
-      const r = generateMockResult(answers, language);
-      setResult(r);
-      if (authUser) {
+    if (savedRef.current) return;
+
+    savedRef.current = true;
+
+    (async () => {
+      try {
+        const { toPlayableUploadUrl } = await import("@/lib/upload");
+        const serverBackedAnswers = answers.map((a) => ({
+          ...a,
+          videoUrl: toPlayableUploadUrl(a.videoUrl),
+        }));
+
+        const r = generateMockResult(serverBackedAnswers, language);
+        setResult(r);
+
         const submitState = submitInterviewResult({
           user: authUser,
           result: r,
@@ -43,10 +60,17 @@ function ProcessingPage() {
           setSubmitError(submitState.message ?? "Submission failed.");
           return;
         }
+      } catch (error) {
+        setSubmitError(
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred during submission.",
+        );
+        return;
       }
-      savedRef.current = true;
+
       setTimeout(() => navigate({ to: "/candidate/result" }), 400);
-    }
+    })();
   }, [
     step,
     answers,

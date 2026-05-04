@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AuthGate } from "@/components/auth-gate";
@@ -10,9 +10,10 @@ export const Route = createFileRoute("/candidate/instructions")({
 });
 
 function InstructionsPage() {
-  const { language, resetAnswers, activeInterviewRole, canCandidateSubmitRole } = useApp();
+  const { language, beginInterviewSession, activeInterviewRole, canCandidateSubmitRole } = useApp();
+  const navigate = useNavigate();
   const eligibility = activeInterviewRole
-    ? canCandidateSubmitRole(activeInterviewRole)
+    ? canCandidateSubmitRole(activeInterviewRole, undefined, language)
     : { allowed: false, reason: "Choose an interview role before starting." };
 
   return (
@@ -30,21 +31,34 @@ function InstructionsPage() {
           )}
 
           <div className="space-y-3">
-            <Tip icon={<Lightbulb className="h-5 w-5" />} title="Sit in good lighting" desc="Make sure your face is well lit, no backlight." />
-            <Tip icon={<Eye className="h-5 w-5" />} title="Ensure your face is visible" desc="Keep camera at eye level. Look straight." />
-            <Tip icon={<Mic className="h-5 w-5" />} title="Speak clearly" desc="Find a quiet place. Don't rush. Be natural." />
+            <Tip
+              icon={<Lightbulb className="h-5 w-5" />}
+              title="Sit in good lighting"
+              desc="Make sure your face is well lit, no backlight."
+            />
+            <Tip
+              icon={<Eye className="h-5 w-5" />}
+              title="Ensure your face is visible"
+              desc="Keep camera at eye level. Look straight."
+            />
+            <Tip
+              icon={<Mic className="h-5 w-5" />}
+              title="Speak clearly"
+              desc="Find a quiet place. Don't rush. Be natural."
+            />
           </div>
 
-          <Link to="/candidate/interview">
-            <Button
-              onClick={resetAnswers}
-              className="mt-8 w-full"
-              size="lg"
-              disabled={!eligibility.allowed}
-            >
-              Start Interview
-            </Button>
-          </Link>
+          <Button
+            className="mt-8 w-full"
+            size="lg"
+            disabled={!eligibility.allowed}
+            onClick={() => {
+              beginInterviewSession();
+              navigate({ to: "/candidate/interview" });
+            }}
+          >
+            Start Interview
+          </Button>
           {!eligibility.allowed && (
             <p className="mt-2 text-sm text-rose-600">{eligibility.reason}</p>
           )}

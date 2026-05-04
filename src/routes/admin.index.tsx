@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MOCK_CANDIDATES, useApp, type CandidateInterviewRole } from "@/lib/store";
+import { useApp, type CandidateInterviewRole } from "@/lib/store";
 import { AlertTriangle, Bell } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
@@ -58,23 +58,18 @@ function AdminDashboard() {
     setAcceptingUntilInput(local);
   }, [selectedControl.acceptingUntil]);
 
-  const allCandidates = useMemo(
-    () => [...submittedCandidates, ...MOCK_CANDIDATES],
-    [submittedCandidates]
-  );
+  const allCandidates = useMemo(() => submittedCandidates, [submittedCandidates]);
 
   const filtered = useMemo(() => {
     return allCandidates.filter(
-      (c) => (lang === "all" || c.language === lang) && (cat === "all" || c.category === cat)
+      (c) => (lang === "all" || c.language === lang) && (cat === "all" || c.category === cat),
     );
   }, [lang, cat, allCandidates]);
 
   const saveInterviewWindow = () => {
     updateInterviewControlForRole(controlRole, {
       isOpen: true,
-      acceptingUntil: acceptingUntilInput
-        ? new Date(acceptingUntilInput).toISOString()
-        : null,
+      acceptingUntil: acceptingUntilInput ? new Date(acceptingUntilInput).toISOString() : null,
     });
   };
 
@@ -88,14 +83,19 @@ function AdminDashboard() {
               <p className="text-sm text-muted-foreground">Review all candidates</p>
             </div>
             <Link to="/">
-              <Button variant="outline" size="sm">Home</Button>
+              <Button variant="outline" size="sm">
+                Home
+              </Button>
             </Link>
           </div>
 
           <Card className="mb-4 p-4">
             <h2 className="text-base font-semibold">Interview Submission Controls</h2>
             <div className="mt-2 max-w-xs">
-              <Select value={controlRole} onValueChange={(value) => setControlRole(value as CandidateInterviewRole)}>
+              <Select
+                value={controlRole}
+                onValueChange={(value) => setControlRole(value as CandidateInterviewRole)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
@@ -108,7 +108,9 @@ function AdminDashboard() {
                 </SelectContent>
               </Select>
             </div>
-            <p className={`mt-1 text-sm ${isInterviewAccepting ? "text-emerald-700" : "text-rose-700"}`}>
+            <p
+              className={`mt-1 text-sm ${isInterviewAccepting ? "text-emerald-700" : "text-rose-700"}`}
+            >
               {controlRole} status: {isInterviewAccepting ? "Open" : "Closed"}
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
@@ -123,7 +125,10 @@ function AdminDashboard() {
               <Button variant="outline" onClick={() => reopenInterviewWindowForRole(controlRole)}>
                 Reopen Role
               </Button>
-              <Button variant="destructive" onClick={() => closeInterviewWindowForRole(controlRole)}>
+              <Button
+                variant="destructive"
+                onClick={() => closeInterviewWindowForRole(controlRole)}
+              >
                 Close Role Now
               </Button>
             </div>
@@ -161,105 +166,123 @@ function AdminDashboard() {
             )}
           </Card>
 
-        <div className="mb-4 grid grid-cols-2 gap-2 sm:max-w-md">
-          <Select value={lang} onValueChange={setLang}>
-            <SelectTrigger><SelectValue placeholder="Language" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Languages</SelectItem>
-              <SelectItem value="English">English</SelectItem>
-              <SelectItem value="Hindi">Hindi</SelectItem>
-              <SelectItem value="Kannada">Kannada</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={cat} onValueChange={setCat}>
-            <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="Engineering">Engineering</SelectItem>
-              <SelectItem value="Product">Product</SelectItem>
-              <SelectItem value="Design">Design</SelectItem>
-              <SelectItem value="Sales">Sales</SelectItem>
-              <SelectItem value="Support">Support</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+          <div className="mb-4 grid grid-cols-2 gap-2 sm:max-w-md">
+            <Select value={lang} onValueChange={setLang}>
+              <SelectTrigger>
+                <SelectValue placeholder="Language" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Languages</SelectItem>
+                <SelectItem value="English">English</SelectItem>
+                <SelectItem value="Hindi">Hindi</SelectItem>
+                <SelectItem value="Kannada">Kannada</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={cat} onValueChange={setCat}>
+              <SelectTrigger>
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="Engineering">Engineering</SelectItem>
+                <SelectItem value="Product">Product</SelectItem>
+                <SelectItem value="Design">Design</SelectItem>
+                <SelectItem value="Sales">Sales</SelectItem>
+                <SelectItem value="Support">Support</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        {/* Mobile cards */}
-        <div className="grid gap-3 sm:hidden">
-          {filtered.map((c) => (
-            <Link key={c.id} to="/admin/$id" params={{ id: c.id }}>
-              <Card className="p-4">
-                <div className="mb-2 flex items-start justify-between">
-                  <div>
-                    <p className="font-semibold">{c.name}</p>
-                    <p className="text-xs text-muted-foreground">{c.id} • {c.language}</p>
+          {/* Mobile cards */}
+          <div className="grid gap-3 sm:hidden">
+            {filtered.map((c) => (
+              <Link key={c.id} to="/admin/$id" params={{ id: c.id }}>
+                <Card className="p-4">
+                  <div className="mb-2 flex items-start justify-between">
+                    <div>
+                      <p className="font-semibold">{c.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {c.id} • {c.language}
+                      </p>
+                      <p className="mt-1 text-[11px] uppercase tracking-wide text-emerald-700">
+                        Submitted
+                      </p>
+                    </div>
+                    <span className="text-2xl font-bold">{c.score}</span>
                   </div>
-                  <span className="text-2xl font-bold">{c.score}</span>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className={classColor[c.classification]}>{c.classification}</Badge>
-                  {c.selected && <Badge className="bg-blue-100 text-blue-700">Selected</Badge>}
-                  {c.flags.map((f) => (
-                    <Badge key={f} variant="destructive" className="text-xs">
-                      <AlertTriangle className="mr-1 h-3 w-3" />{f}
-                    </Badge>
-                  ))}
-                </div>
-              </Card>
-            </Link>
-          ))}
-        </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className={classColor[c.classification]}>{c.classification}</Badge>
+                    {c.selected && <Badge className="bg-blue-100 text-blue-700">Selected</Badge>}
+                    {c.flags.map((f) => (
+                      <Badge key={f} variant="destructive" className="text-xs">
+                        <AlertTriangle className="mr-1 h-3 w-3" />
+                        {f}
+                      </Badge>
+                    ))}
+                  </div>
+                </Card>
+              </Link>
+            ))}
+          </div>
 
-        {/* Desktop table */}
-        <Card className="hidden overflow-hidden sm:block">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs uppercase">
-              <tr>
-                <th className="p-3 text-left">Candidate</th>
-                <th className="p-3 text-left">Language</th>
-                <th className="p-3 text-left">Role</th>
-                <th className="p-3 text-left">Score</th>
-                <th className="p-3 text-left">Classification</th>
-                <th className="p-3 text-left">Flags</th>
-                <th className="p-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((c) => (
-                <tr key={c.id} className="border-t">
-                  <td className="p-3">
-                    <p className="font-medium">{c.name}</p>
-                    <p className="text-xs text-muted-foreground">{c.id}</p>
-                  </td>
-                  <td className="p-3">{c.language}</td>
-                  <td className="p-3">{c.category}</td>
-                  <td className="p-3 font-semibold">{c.score}</td>
-                  <td className="p-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge className={classColor[c.classification]}>{c.classification}</Badge>
-                      {c.selected && <Badge className="bg-blue-100 text-blue-700">Selected</Badge>}
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex flex-wrap gap-1">
-                      {c.flags.map((f) => (
-                        <Badge key={f} variant="destructive" className="text-xs">{f}</Badge>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="p-3">
-                    <Link to="/admin/$id" params={{ id: c.id }}>
-                      <Button size="sm" variant="outline">View</Button>
-                    </Link>
-                  </td>
+          {/* Desktop table */}
+          <Card className="hidden overflow-hidden sm:block">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-xs uppercase">
+                <tr>
+                  <th className="p-3 text-left">Candidate</th>
+                  <th className="p-3 text-left">Language</th>
+                  <th className="p-3 text-left">Role</th>
+                  <th className="p-3 text-left">Score</th>
+                  <th className="p-3 text-left">Classification</th>
+                  <th className="p-3 text-left">Flags</th>
+                  <th className="p-3"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+              </thead>
+              <tbody>
+                {filtered.map((c) => (
+                  <tr key={c.id} className="border-t">
+                    <td className="p-3">
+                      <p className="font-medium">{c.name}</p>
+                      <p className="text-xs text-muted-foreground">{c.id}</p>
+                    </td>
+                    <td className="p-3">{c.language}</td>
+                    <td className="p-3">{c.category}</td>
+                    <td className="p-3 font-semibold">{c.score}</td>
+                    <td className="p-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={classColor[c.classification]}>{c.classification}</Badge>
+                        {c.selected && (
+                          <Badge className="bg-blue-100 text-blue-700">Selected</Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {c.flags.map((f) => (
+                          <Badge key={f} variant="destructive" className="text-xs">
+                            {f}
+                          </Badge>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <Link to="/admin/$id" params={{ id: c.id }}>
+                        <Button size="sm" variant="outline">
+                          View
+                        </Button>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
 
           {filtered.length === 0 && (
-            <p className="mt-8 text-center text-sm text-muted-foreground">No candidates match filters.</p>
+            <p className="mt-8 text-center text-sm text-muted-foreground">
+              No submitted candidates match filters.
+            </p>
           )}
         </div>
       </div>

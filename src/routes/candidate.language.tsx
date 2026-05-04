@@ -49,7 +49,7 @@ function LanguagePage() {
   const choose = (lang: string) => {
     if (!activeInterviewRole) return;
 
-    const eligibility = canCandidateSubmitRole(activeInterviewRole);
+    const eligibility = canCandidateSubmitRole(activeInterviewRole, undefined, lang);
     if (!eligibility.allowed) return;
 
     setLanguage(lang);
@@ -100,7 +100,9 @@ function LanguagePage() {
 
           <Card className="mb-4 p-4">
             <p className="text-sm font-medium">Interview window status</p>
-            <p className={`mt-1 text-sm ${isInterviewAccepting ? "text-emerald-700" : "text-rose-700"}`}>
+            <p
+              className={`mt-1 text-sm ${isInterviewAccepting ? "text-emerald-700" : "text-rose-700"}`}
+            >
               {isInterviewAccepting ? "Open" : "Closed"}
             </p>
             {selectedRoleControl?.acceptingUntil && (
@@ -155,14 +157,16 @@ function LanguagePage() {
                   </div>
                   <Button
                     size="sm"
-                    disabled={!activeInterviewRole || !currentEligibility.allowed || !isInterviewAccepting}
+                    disabled={
+                      !activeInterviewRole || !currentEligibility.allowed || !isInterviewAccepting
+                    }
                   >
                     Select
                   </Button>
                 </div>
               </Card>
             ))}
-        </div>
+          </div>
         </div>
       </div>
     </AuthGate>

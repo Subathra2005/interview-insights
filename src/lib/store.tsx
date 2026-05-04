@@ -1,13 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { selectRandomInterviewQuestions, type InterviewQuestion } from "@/lib/interview-flow";
 
 export type UserRole = "candidate" | "admin";
 
-export type CandidateInterviewRole =
-  | "Engineering"
-  | "Product"
-  | "Design"
-  | "Sales"
-  | "Support";
+export type CandidateInterviewRole = "Engineering" | "Product" | "Design" | "Sales" | "Support";
 
 export type AuthUser = {
   name: string;
@@ -33,6 +29,7 @@ export type InterviewResult = {
   transcripts: Array<{
     questionIndex: number;
     question: string;
+    videoUrl?: string;
     transcript: string;
   }>;
   validation: {
@@ -92,6 +89,7 @@ const ADMIN_PASSWORD = "12345";
 const AUTH_STORAGE_KEY = "interview-insights-auth-user";
 const ACCOUNTS_STORAGE_KEY = "interview-insights-candidate-accounts";
 const SUBMISSIONS_STORAGE_KEY = "interview-insights-submitted-candidates";
+const RESULT_STORAGE_KEY = "interview-insights-current-result";
 const INTERVIEW_CONTROL_STORAGE_KEY = "interview-insights-interview-control";
 const NOTIFICATION_STORAGE_KEY = "interview-insights-notifications";
 
@@ -126,6 +124,7 @@ export const QUESTIONS = [
 
 export type Answer = {
   questionIndex: number;
+  question: string;
   videoUrl: string;
   durationSec: number;
 };
@@ -138,6 +137,8 @@ type AppState = {
   answers: Answer[];
   addAnswer: (a: Answer) => void;
   resetAnswers: () => void;
+  selectedQuestions: InterviewQuestion[];
+  beginInterviewSession: () => void;
   result: InterviewResult | null;
   setResult: (r: InterviewResult | null) => void;
   authUser: AuthUser | null;
@@ -151,7 +152,11 @@ type AppState = {
     result: InterviewResult;
     interviewRole: CandidateInterviewRole;
   }) => SubmitInterviewResult;
-  canCandidateSubmitRole: (role: CandidateInterviewRole, email?: string) => SubmissionEligibility;
+  canCandidateSubmitRole: (
+    role: CandidateInterviewRole,
+    email?: string,
+    language?: string,
+  ) => SubmissionEligibility;
   interviewControlsByRole: InterviewControlByRole;
   getInterviewControlForRole: (role: CandidateInterviewRole) => InterviewControl;
   isInterviewAcceptingForRole: (role: CandidateInterviewRole) => boolean;
@@ -179,7 +184,36 @@ function safeReadJson<T>(storageKey: string, fallback: T): T {
 function safeWriteJson(storageKey: string, value: unknown) {
   if (typeof window === "undefined") return;
 
-  window.localStorage.setItem(storageKey, JSON.stringify(value));
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(value));
+  } catch (error) {
+    // Handle quota exceeded errors by clearing old submissions
+    if (
+      error instanceof Error &&
+      (error.name === "QuotaExceededError" || error.message.includes("quota"))
+    ) {
+      console.warn("localStorage quota exceeded, clearing old submissions...");
+      // Clear submissions to free up space
+      if (storageKey === SUBMISSIONS_STORAGE_KEY) {
+        try {
+          window.localStorage.setItem(storageKey, JSON.stringify([]));
+        } catch {
+          // If still can't write, give up silently
+          console.error("Failed to clear submissions from storage");
+        }
+      } else {
+        // For other keys, try removing submissions storage as last resort
+        try {
+          window.localStorage.removeItem(SUBMISSIONS_STORAGE_KEY);
+          window.localStorage.setItem(storageKey, JSON.stringify(value));
+        } catch {
+          console.error("Failed to write to storage after clearing submissions");
+        }
+      }
+    } else {
+      console.error("Failed to write to localStorage:", error);
+    }
+  }
 }
 
 function toPublicUser(account: SavedAccount): AuthUser {
@@ -256,24 +290,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState("English");
   const [activeInterviewRole, setActiveInterviewRole] = useState<CandidateInterviewRole | "">("");
   const [answers, setAnswers] = useState<Answer[]>([]);
+  const [selectedQuestions, setSelectedQuestions] = useState<InterviewQuestion[]>([]);
   const [result, setResult] = useState<InterviewResult | null>(null);
-  const [authUser, setAuthUser] = useState<AuthUser | null>(() =>
-    safeReadJson<AuthUser | null>(AUTH_STORAGE_KEY, null)
+  // Initialize to stable server-friendly defaults to avoid hydration mismatches.
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [candidateAccounts, setCandidateAccounts] = useState<SavedAccount[]>([]);
+  const [submittedCandidates, setSubmittedCandidates] = useState<AdminCandidateRecord[]>([]);
+  const [interviewControlsByRole, setInterviewControlsByRole] = useState<InterviewControlByRole>(
+    DEFAULT_INTERVIEW_CONTROL_BY_ROLE,
   );
-  const [candidateAccounts, setCandidateAccounts] = useState<SavedAccount[]>(() =>
-    safeReadJson<SavedAccount[]>(ACCOUNTS_STORAGE_KEY, [])
-  );
-  const [submittedCandidates, setSubmittedCandidates] = useState<AdminCandidateRecord[]>(() =>
-    safeReadJson<AdminCandidateRecord[]>(SUBMISSIONS_STORAGE_KEY, [])
-  );
-  const [interviewControlsByRole, setInterviewControlsByRole] = useState<InterviewControlByRole>(() =>
-    normalizeInterviewControls(
-      safeReadJson<unknown>(INTERVIEW_CONTROL_STORAGE_KEY, DEFAULT_INTERVIEW_CONTROL_BY_ROLE)
-    )
-  );
-  const [notifications, setNotifications] = useState<AppNotification[]>(() =>
-    safeReadJson<AppNotification[]>(NOTIFICATION_STORAGE_KEY, [])
-  );
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+
+  // On client mount, hydrate from localStorage. This runs only in the browser
+  // and ensures server-rendered HTML matches the initial client render.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    setAuthUser(safeReadJson<AuthUser | null>(AUTH_STORAGE_KEY, null));
+    setCandidateAccounts(safeReadJson<SavedAccount[]>(ACCOUNTS_STORAGE_KEY, []));
+    setSubmittedCandidates(safeReadJson<AdminCandidateRecord[]>(SUBMISSIONS_STORAGE_KEY, []));
+    setResult(safeReadJson<InterviewResult | null>(RESULT_STORAGE_KEY, null));
+    setInterviewControlsByRole(
+      normalizeInterviewControls(
+        safeReadJson<unknown>(INTERVIEW_CONTROL_STORAGE_KEY, DEFAULT_INTERVIEW_CONTROL_BY_ROLE),
+      ),
+    );
+    setNotifications(safeReadJson<AppNotification[]>(NOTIFICATION_STORAGE_KEY, []));
+  }, []);
 
   useEffect(() => {
     safeWriteJson(AUTH_STORAGE_KEY, authUser);
@@ -284,7 +327,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [candidateAccounts]);
 
   useEffect(() => {
-    safeWriteJson(SUBMISSIONS_STORAGE_KEY, submittedCandidates);
+    // Keep only the most recent 100 submissions to prevent localStorage bloat
+    const trimmed =
+      submittedCandidates.length > 100 ? submittedCandidates.slice(0, 100) : submittedCandidates;
+    safeWriteJson(SUBMISSIONS_STORAGE_KEY, trimmed);
   }, [submittedCandidates]);
 
   useEffect(() => {
@@ -295,6 +341,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     safeWriteJson(NOTIFICATION_STORAGE_KEY, notifications);
   }, [notifications]);
 
+  useEffect(() => {
+    safeWriteJson(RESULT_STORAGE_KEY, result);
+  }, [result]);
+
   const myNotifications = useMemo(() => {
     if (!authUser) return [];
 
@@ -303,13 +353,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     return notifications.filter(
-      (n) => n.recipientRole === "candidate" && n.recipientEmail === authUser.email
+      (n) => n.recipientRole === "candidate" && n.recipientEmail === authUser.email,
     );
   }, [authUser, notifications]);
 
   const unreadMyNotifications = useMemo(
     () => myNotifications.filter((n) => !n.read).length,
-    [myNotifications]
+    [myNotifications],
   );
 
   const addNotification = (notification: Omit<AppNotification, "id" | "createdAt" | "read">) => {
@@ -341,7 +391,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
 
         return n;
-      })
+      }),
     );
   };
 
@@ -353,6 +403,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const resetAnswers = () => setAnswers([]);
 
+  const beginInterviewSession = () => {
+    if (!activeInterviewRole) return;
+
+    setSelectedQuestions(selectRandomInterviewQuestions(activeInterviewRole, language, 5));
+    setAnswers([]);
+    setResult(null);
+  };
+
   const login = ({ email, password }: { email: string; password: string }): AuthResult => {
     const normalizedEmail = email.trim().toLowerCase();
 
@@ -363,7 +421,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     const candidate = candidateAccounts.find(
-      (account) => account.email.toLowerCase() === normalizedEmail && account.password === password
+      (account) => account.email.toLowerCase() === normalizedEmail && account.password === password,
     );
 
     if (!candidate) {
@@ -419,11 +477,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setAuthUser(null);
     setActiveInterviewRole("");
+    setSelectedQuestions([]);
+    setAnswers([]);
+    setResult(null);
   };
 
   const canCandidateSubmitRole = (
     role: CandidateInterviewRole,
-    email = authUser?.email
+    email = authUser?.email,
+    currentLanguage = language,
   ): SubmissionEligibility => {
     if (!email) {
       return { allowed: false, reason: "Please login to continue." };
@@ -442,13 +504,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     const alreadySubmitted = submittedCandidates.some(
-      (candidate) => candidate.email === email && candidate.interviewRole === role
+      (candidate) => candidate.email === email && candidate.interviewRole === role,
     );
 
     if (alreadySubmitted) {
       return {
         allowed: false,
-        reason: `You already submitted the ${role} interview. Multiple submissions for the same role are not allowed.`,
+        reason: `You already submitted an interview for ${role}. Multiple submissions for the same role are not allowed.`,
       };
     }
 
@@ -468,39 +530,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return { ok: false, message: "Only candidates can submit interviews." };
     }
 
-    const eligibility = canCandidateSubmitRole(interviewRole, user.email);
+    if (!interviewRole || interviewRole.length === 0) {
+      return { ok: false, message: "Invalid interview role. Please select a valid role." };
+    }
+
+    if (!user.email || user.email.trim().length === 0) {
+      return { ok: false, message: "User email is missing. Please log in again." };
+    }
+
+    const eligibility = canCandidateSubmitRole(interviewRole, user.email, result.language);
     if (!eligibility.allowed) {
       return { ok: false, message: eligibility.reason };
     }
 
-    const record: AdminCandidateRecord = {
-      id: `INT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
-      name: user.name,
-      email: user.email,
-      language: result.language,
-      score: result.overall,
-      classification: result.classification,
-      flags: buildFlags(result),
-      category: interviewRole,
-      source: "submission",
-      interviewRole,
-      submittedAt: new Date().toISOString(),
-      result,
-      selected: false,
-    };
+    try {
+      const record: AdminCandidateRecord = {
+        id: `INT-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+        name: user.name,
+        email: user.email,
+        language: result.language,
+        score: result.overall,
+        classification: result.classification,
+        flags: buildFlags(result),
+        category: interviewRole,
+        source: "submission",
+        interviewRole,
+        submittedAt: new Date().toISOString(),
+        result,
+        selected: false,
+      };
 
-    setSubmittedCandidates((prev) => [record, ...prev]);
+      setSubmittedCandidates((prev) => [record, ...prev]);
 
-    addNotification({
-      kind: "admin:new-interview",
-      recipientRole: "admin",
-      message: `New interview submitted by ${record.name} for ${interviewRole}.`,
-    });
+      addNotification({
+        kind: "admin:new-interview",
+        recipientRole: "admin",
+        message: `New interview submitted by ${record.name} for ${interviewRole}.`,
+      });
 
-    return { ok: true, record };
+      return { ok: true, record };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Submission failed due to an unexpected error.";
+      return { ok: false, message: errorMessage };
+    }
   };
 
-  const getInterviewControlForRole = (role: CandidateInterviewRole) => interviewControlsByRole[role];
+  const getInterviewControlForRole = (role: CandidateInterviewRole) =>
+    interviewControlsByRole[role];
 
   const isInterviewAcceptingForRole = (role: CandidateInterviewRole) =>
     isInterviewCurrentlyAccepting(interviewControlsByRole[role]);
@@ -539,7 +616,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         };
 
         return changedRecord;
-      })
+      }),
     );
 
     if (!changedRecord) return false;
@@ -566,6 +643,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         answers,
         addAnswer,
         resetAnswers,
+        selectedQuestions,
+        beginInterviewSession,
         result,
         setResult,
         authUser,
@@ -662,7 +741,8 @@ export function generateMockResult(answers: Answer[], language: string): Intervi
     classification,
     transcripts: answers.map((a, i) => ({
       questionIndex: a.questionIndex,
-      question: QUESTIONS[a.questionIndex],
+      question: a.question,
+      videoUrl: a.videoUrl,
       transcript:
         "This is a simulated transcript of the candidate's response to question " +
         (i + 1) +

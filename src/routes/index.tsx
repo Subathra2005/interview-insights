@@ -80,7 +80,7 @@ function Home() {
         <section className="space-y-8">
           <div className="inline-flex items-center gap-2 rounded-full border bg-white/80 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm backdrop-blur">
             <Sparkles className="h-3.5 w-3.5 text-blue-600" />
-            Candidate signup with role selection, admin-only sign in
+            Structured video interviews with centralized review
           </div>
 
           <header className="max-w-xl space-y-4">
@@ -91,8 +91,8 @@ function Home() {
               AI Video Interview
             </h1>
             <p className="max-w-lg text-base leading-7 text-slate-600 sm:text-lg">
-              Candidates create an account, login, then choose the role they are interviewing for
-              before submitting. Admin access is locked to one account only: admin@gmail.com / 12345.
+              Run role-based video interviews, capture candidate responses, and review submissions
+              from one focused assessment workspace.
             </p>
           </header>
 
@@ -116,7 +116,9 @@ function Home() {
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
-                  onClick={() => navigate({ to: authUser.role === "admin" ? "/admin" : "/candidate/language" })}
+                  onClick={() =>
+                    navigate({ to: authUser.role === "admin" ? "/admin" : "/candidate/language" })
+                  }
                 >
                   Continue
                 </Button>
@@ -189,7 +191,7 @@ function Home() {
               <Input
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder={audience === "admin" ? "admin@gmail.com" : "you@example.com"}
+                placeholder={audience === "admin" ? "Admin email" : "you@example.com"}
                 type="email"
                 autoComplete="email"
               />
@@ -200,7 +202,7 @@ function Home() {
               <Input
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                placeholder={audience === "admin" ? "12345" : "Choose a password"}
+                placeholder={audience === "admin" ? "Admin password" : "Choose a password"}
                 type="password"
                 autoComplete={audience === "admin" ? "current-password" : "new-password"}
               />
@@ -208,7 +210,7 @@ function Home() {
 
             {audience === "admin" && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                Admin signup is disabled. Use admin@gmail.com and 12345.
+                Admin access is restricted to authorized reviewers.
               </div>
             )}
 
@@ -235,9 +237,8 @@ function Home() {
             <Separator />
 
             <p className="text-xs leading-5 text-slate-500">
-              Candidate signup creates login credentials only. The interview role is selected after
-              login, and each role can be submitted only once. Admin access is limited to a single
-              hardcoded login and cannot be signed up.
+              Candidates complete one guided submission per role. Reviewers can monitor submissions,
+              playback recordings, and manage selection decisions from the admin dashboard.
             </p>
           </form>
         </Card>

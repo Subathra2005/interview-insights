@@ -20,6 +20,9 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Local interview recordings
+server/uploads/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

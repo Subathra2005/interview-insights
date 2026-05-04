@@ -2,17 +2,18 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AuthGate } from "@/components/auth-gate";
-import { useApp, QUESTIONS } from "@/lib/store";
+import { useApp } from "@/lib/store";
+import { toPlayableUploadUrl } from "@/lib/upload";
 
 export const Route = createFileRoute("/candidate/review")({
   component: ReviewPage,
 });
 
 function ReviewPage() {
-  const { answers, activeInterviewRole, canCandidateSubmitRole } = useApp();
+  const { answers, activeInterviewRole, canCandidateSubmitRole, language } = useApp();
   const navigate = useNavigate();
   const eligibility = activeInterviewRole
-    ? canCandidateSubmitRole(activeInterviewRole)
+    ? canCandidateSubmitRole(activeInterviewRole, undefined, language)
     : { allowed: false, reason: "Choose an interview role before submitting." };
 
   if (answers.length === 0) {
@@ -44,9 +45,15 @@ function ReviewPage() {
                   <p className="text-xs font-medium text-muted-foreground">
                     Question {a.questionIndex + 1}
                   </p>
-                  <p className="text-sm font-medium">{QUESTIONS[a.questionIndex]}</p>
+                  <p className="text-sm font-medium">{a.question}</p>
                 </div>
-                <video src={a.videoUrl} controls playsInline className="aspect-video w-full bg-black" />
+                <video
+                  src={toPlayableUploadUrl(a.videoUrl)}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="aspect-video w-full bg-black"
+                />
                 <div className="px-3 py-2 text-xs text-muted-foreground">
                   Duration: {a.durationSec}s
                 </div>
